@@ -1,9 +1,12 @@
 const express = require("express");
 const morgan = require("morgan");
+const cors = require("cors");
 //express above is a function
 const app = express();
+app.use(cors());
 //below is used to parse the body correctly while getting data from the body
 app.use(express.json());
+app.use(express.static("dist"));
 morgan.token("body", (req, res) => JSON.stringify(req.body));
 app.use(
   morgan(
@@ -65,7 +68,9 @@ app.get("/api/persons/:id", (req, res) => {
 app.delete("/api/persons/:id", (req, res) => {
   const id = Number(req.params.id);
   persons = persons.filter((person) => person.id !== id);
-  res.status(204).end;
+  console.log("persons", persons);
+  res.statusMessage = `Person with id ${id} deleted successfully!`;
+  res.status(204).end();
 });
 
 const getNewId = () => {
@@ -103,5 +108,5 @@ const unknownEndpoint = (req, res) => {
   });
 };
 app.use(unknownEndpoint);
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT);
