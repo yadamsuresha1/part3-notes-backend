@@ -1,6 +1,8 @@
+require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const Person = require("./models/person");
 //express above is a function
 const app = express();
 app.use(cors());
@@ -22,31 +24,12 @@ const requestLogger = (req, res, next) => {
 };
 app.use(requestLogger);
 
-let persons = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
+let persons = [];
 
 app.get("/api/persons", (req, res) => {
-  res.json(persons);
+  Person.find({}).then((persons) => {
+    res.json(persons);
+  });
 });
 app.get("/info", (req, res) => {
   const peopleCount = persons.length;
@@ -55,14 +38,19 @@ app.get("/info", (req, res) => {
   );
 });
 app.get("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const person = persons.find((person) => person.id === id);
-  if (person) {
-    res.send(person);
-  } else {
-    res.statusMessage = `No person with id ${id} found`;
-    res.status(400).end();
-  }
+  const id = req.params.id;
+  Person.findById(id)
+    .then((person) => {
+      if (person) {
+        res.json(person);
+      } else {
+        res.status(404).end();
+      }
+    })
+    .catch((err) => {
+      res.statusMessage = err;
+      res.status(400).end();
+    });
 });
 
 app.delete("/api/persons/:id", (req, res) => {
@@ -83,24 +71,24 @@ app.post("/api/persons", (req, res) => {
       error: "name is mandatory",
     });
   }
-  const person = persons.find((person) => person.name === body.name);
-  if (person) {
-    return res.status(400).json({
-      error: "name must be unique",
-    });
-  }
   if (!body.number) {
     return res.status(400).json({
       error: "number is mandatory",
     });
   }
-  const newPerson = {
+  const person = new Person({
     name: body.name,
     number: body.number,
-    id: getNewId(),
-  };
-  persons = persons.concat(newPerson);
-  res.json(newPerson);
+  });
+  person
+    .save()
+    .then((newPerson) => {
+      res.json(newPerson);
+    })
+    .catch((err) => {
+      res.statusMessage = err;
+      res.status(400).end();
+    });
 });
 const unknownEndpoint = (req, res) => {
   res.status(404).send({
