@@ -22,6 +22,7 @@ const requestLogger = (req, res, next) => {
   console.log("---");
   next();
 };
+
 app.use(requestLogger);
 
 let persons = [];
@@ -31,11 +32,13 @@ app.get("/api/persons", (req, res) => {
     res.json(persons);
   });
 });
+
 app.get("/info", (req, res) => {
-  const peopleCount = persons.length;
-  res.send(
-    `<p>Phonebook has info for ${peopleCount} people<br/><br/>${new Date()}</p>`
-  );
+  Person.estimatedDocumentCount().then((count) => {
+    res.send(
+      `<p>Phonebook has info for ${count} people<br/><br/>${new Date()}</p>`
+    );
+  });
 });
 app.get("/api/persons/:id", (req, res) => {
   const id = req.params.id;
@@ -54,17 +57,12 @@ app.get("/api/persons/:id", (req, res) => {
 });
 
 app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  persons = persons.filter((person) => person.id !== id);
-  console.log("persons", persons);
-  res.statusMessage = `Person with id ${id} deleted successfully!`;
-  res.status(204).end();
+  Person.findByIdAndDelete(req.params.id).then((result) => {
+    res.status(204).end();
+  });
 });
 
-const getNewId = () => {
-  return Math.floor(Math.random() * 100000);
-};
-app.post("/api/persons", (req, res) => {
+app.post("/api/persons", (req, res, next) => {
   const body = req.body;
   if (!body.name) {
     return res.status(400).json({
@@ -81,14 +79,24 @@ app.post("/api/persons", (req, res) => {
     number: body.number,
   });
   person
-    .save()
+    .save(person)
     .then((newPerson) => {
       res.json(newPerson);
     })
-    .catch((err) => {
-      res.statusMessage = err;
-      res.status(400).end();
-    });
+    .catch((err) => next(err));
+});
+
+app.put("/api/persons/:id", (req, res, next) => {
+  const body = req.body;
+  const person = {
+    name: body.name,
+    number: body.number,
+  };
+  Person.findByIdAndUpdate(req.params.id, person, { new: true })
+    .then((updatedPerson) => {
+      res.json(updatedPerson);
+    })
+    .catch((err) => next(err));
 });
 const unknownEndpoint = (req, res) => {
   res.status(404).send({
@@ -96,5 +104,13 @@ const unknownEndpoint = (req, res) => {
   });
 };
 app.use(unknownEndpoint);
+const errorHandler = (error, req, res, next) => {
+  console.log(error.message);
+  if (error.name === "CastError") {
+    return res.status(400).send({ error: "malformatted id" });
+  }
+  next(error);
+};
+app.use(errorHandler);
 const PORT = process.env.PORT || 3001;
 app.listen(PORT);
