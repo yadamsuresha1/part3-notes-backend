@@ -9,7 +9,7 @@ app.use(cors());
 //below is used to parse the body correctly while getting data from the body
 app.use(express.json());
 app.use(express.static("dist"));
-morgan.token("body", (req, res) => JSON.stringify(req.body));
+morgan.token("body", (req) => JSON.stringify(req.body));
 app.use(
   morgan(
     ":method :url :status :response-time ms - :res[content-length] :body - :req[content-length]"
@@ -24,8 +24,6 @@ const requestLogger = (req, res, next) => {
 };
 
 app.use(requestLogger);
-
-let persons = [];
 
 app.get("/api/persons", (req, res) => {
   Person.find({}).then((persons) => {
@@ -57,7 +55,7 @@ app.get("/api/persons/:id", (req, res) => {
 });
 
 app.delete("/api/persons/:id", (req, res) => {
-  Person.findByIdAndDelete(req.params.id).then((result) => {
+  Person.findByIdAndDelete(req.params.id).then(() => {
     res.status(204).end();
   });
 });
